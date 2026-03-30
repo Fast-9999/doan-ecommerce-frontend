@@ -6,275 +6,373 @@ import Link from "next/link";
 import axios from "axios";
 import useAuthStore from "../../store/useAuthStore";
 
-export default function AdminDashboard() {
+export default function AdminOrders() {
   const { user } = useAuthStore();
   const router = useRouter();
   
   const [isClient, setIsClient] = useState(false);
-  const [allOrders, setAllOrders] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
 
-  // --- STATE PHỤC VỤ CRUD UPDATE ---
-  const [editingOrderId, setEditingOrderId] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const availableStatuses = ['Processing', 'Shipping', 'Delivered', 'Cancelled'];
+  // 🚀 STATE CHO DASHBOARD THỐNG KÊ
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    processing: 0,
+    delivered: 0
+  });
 
   useEffect(() => {
     setIsClient(true);
-    
-    // BẢO VỆ LỚP 1: Chặn đứng mấy thanh niên đi cửa sau
     if (user) {
-      // LƯỚI LỌC CHỦ TỊCH
-      const isAdmin = user.role === 'admin' || 
-                      user.role === 'ADMIN' || 
-                      user.role === '69c79a3c076efe132ceab729' || 
-                      user.role?.name === 'admin' || 
-                      user.role?._id === '69c79a3c076efe132ceab729' ||
-                      user.username === 'phattest'; 
-      
+      const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.username === 'phattest' || user.role?.name === 'admin';
       if (!isAdmin) {
-        alert("Khu vực cấm! Chỉ Chủ Tịch mới được vào nha mấy ní!");
+        alert("Khu vực cấm! Chỉ dành cho Chủ Tịch!");
         router.push("/");
         return;
-      } 
-      
-      fetchAllUsersOrders();
+      }
+      fetchAllOrders();
     } else {
       router.push("/login");
     }
   }, [user, router]);
 
-  const fetchAllUsersOrders = async () => {
+  const getAuthHeaders = () => {
+    return {
+      headers: {
+        "Content-Type": "application/json",
+        ...(user?.token && { Authorization: `Bearer ${user.token}` }),
+        ...(user?.accessToken && { Authorization: `Bearer ${user.accessToken}` })
+      }
+    };
+  };
+
+  const fetchAllOrders = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("https://doan-ecommerce-backend.vercel.app/api/v1/orders");
+      const res = await axios.get("https://doan-ecommerce-backend.vercel.app/api/v1/orders", getAuthHeaders());
       
-      let data = response.data;
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        data = data.data || data.orders || data.result || [];
+      let allOrders = res.data;
+      if (allOrders && typeof allOrders === 'object' && !Array.isArray(allOrders)) {
+        allOrders = allOrders.data || allOrders.orders || allOrders.result || [];
       }
 
-      if (Array.isArray(data)) {
-        data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-        setAllOrders(data);
-      } else {
-        setAllOrders([]);
+      if (Array.isArray(allOrders)) {
+        allOrders.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        setOrders(allOrders);
+        calculateStats(allOrders); // 🚀 Tính toán số liệu cho Dashboard
       }
     } catch (err) {
-      console.error("Lỗi lấy danh sách tổng:", err);
+      console.error("Lỗi lấy danh sách đơn hàng:", err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- CÁC HÀM XỬ LÝ CRUD ---
+  // 🚀 Hàm tính toán Thống Kê (Dashboard)
+  const calculateStats = (data) => {
+    let revenue = 0;
+    let proc = 0;
+    let deli = 0;
 
-  // [UPDATE] 1. Bật chế độ sửa
-  const startEditing = (order) => {
-    setEditingOrderId(order._id);
-    setSelectedStatus(order.orderStatus);
+    data.forEach(order => {
+      // Chỉ tính doanh thu những đơn đã giao hoặc đang xử lý (không tính đơn hủy)
+      const orderStatus = order.orderStatus || order.status;
+      if (orderStatus !== 'Cancelled') {
+        revenue += (order.totalPrice || order.totalAmount || 0);
+      }
+      
+      if (orderStatus === 'Processing' || !orderStatus) proc++;
+      if (orderStatus === 'Delivered') deli++;
+    });
+
+    setStats({
+      totalRevenue: revenue,
+      totalOrders: data.length,
+      processing: proc,
+      delivered: deli
+    });
   };
 
-  // [UPDATE] 2. Tắt chế độ sửa
-  const cancelEditing = () => {
-    setEditingOrderId(null);
-    setSelectedStatus("");
-  };
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    if (!window.confirm(`Xác nhận đổi trạng thái đơn hàng này thành: ${getStatusText(newStatus)}?`)) return;
 
-  // [UPDATE] 3. Gọi API PUT để lưu trạng thái
-  const handleSaveStatus = async (orderId) => {
     try {
+      setUpdatingId(orderId);
+      
       await axios.put(
-        `https://doan-ecommerce-backend.vercel.app/api/v1/orders/${orderId}/status`,
-        { orderStatus: selectedStatus }
+        `https://doan-ecommerce-backend.vercel.app/api/v1/orders/${orderId}/status`, 
+        {
+          orderStatus: newStatus,
+          status: newStatus 
+        },
+        getAuthHeaders() 
       );
-      alert(`🎉 Đã đổi trạng thái đơn hàng thành công sang "${getStatusText(selectedStatus)}"!`);
-      cancelEditing();
-      fetchAllUsersOrders(); 
+
+      alert("✅ Duyệt đơn thành công!");
+      fetchAllOrders(); 
     } catch (err) {
-      console.error("Lỗi cập nhật trạng thái:", err);
-      alert("Cập nhật thất bại rồi ní ơi. Check console coi lỗi gì nha.");
+      console.error("Lỗi cập nhật đơn:", err);
+      const backendError = err.response?.data?.message || err.response?.data?.error || "Lỗi bí ẩn";
+      alert(`❌ Cập nhật thất bại! BE báo nè: "${backendError}"`);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  // [DELETE] 4. Gọi API DELETE để xóa vĩnh viễn đơn hàng
   const handleDeleteOrder = async (orderId) => {
-    // Hiện bảng hỏi lại cho chắc ăn
-    const isConfirm = window.confirm("⚠️ Ní có chắc chắn muốn xóa vĩnh viễn đơn hàng này không? Hành động này bay màu luôn không khôi phục được đâu nha!");
-    
-    if (!isConfirm) return; // Bấm Cancel thì hủy lệnh
+    if (!window.confirm("⚠️ Ní có chắc chắn muốn xóa vĩnh viễn đơn hàng này không?")) return;
 
     try {
-      // Bắn API xóa đơn hàng theo ID
-      await axios.delete(`https://doan-ecommerce-backend.vercel.app/api/v1/orders/${orderId}`);
-      
+      await axios.delete(`https://doan-ecommerce-backend.vercel.app/api/v1/orders/${orderId}`, getAuthHeaders());
       alert("🗑️ Đã xóa đơn hàng thành công!");
-      fetchAllUsersOrders(); // Load lại bảng ngay và luôn
+      fetchAllOrders(); 
     } catch (err) {
       console.error("Lỗi xóa đơn hàng:", err);
-      // Nếu Backend chưa có API DELETE /orders/:id thì nó sẽ văng vô đây
-      alert("Xóa thất bại! Ní nhớ check lại xem BE file routes/orders.js đã có viết API router.delete('/:id') chưa nha.");
+      alert("❌ Xóa thất bại! Backend có thể chưa mở cổng router.delete('/:id')");
     }
   };
 
-
-  // --- HELPER PHỤC VỤ GIAO DIỆN ---
   const formatPrice = (price) => price?.toLocaleString("vi-VN") + " VNĐ";
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Processing': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Shipping': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'Delivered': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Processing': return 'bg-blue-100 text-blue-700';
+      case 'Shipping': return 'bg-purple-100 text-purple-700';
+      case 'Delivered': return 'bg-green-100 text-green-700';
+      case 'Cancelled': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
       case 'Processing': return 'Đang xử lý';
-      case 'Shipping': return 'Đang giao';
-      case 'Delivered': return 'Đã giao';
+      case 'Shipping': return 'Đang giao hàng';
+      case 'Delivered': return 'Đã giao thành công';
       case 'Cancelled': return 'Đã hủy';
-      default: return status;
+      default: return status || 'Đang chờ';
     }
   };
 
   if (!isClient) return null;
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mb-4"></div>
-        <h2 className="text-xl font-bold text-gray-700">Đang kiểm tra quyền hạn...</h2>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-slate-50 font-sans">
       
-      {/* Sidebar Menu Trái */}
-      <div className="w-64 bg-slate-900 text-white p-6 shadow-xl hidden md:block">
-        <h2 className="text-2xl font-black mb-10 tracking-wider logo-admin">
-          👑 ADMIN <span className="text-orange-500">PANEL</span>
+      {/* Sidebar Admin Quyền Lực */}
+      <div className="w-64 bg-slate-900 text-white p-6 shadow-xl hidden md:block shrink-0 relative z-20">
+        <h2 className="text-2xl font-black mb-10 tracking-wider">
+          👑 ADMIN <span className="text-blue-500">PANEL</span>
         </h2>
         <nav className="space-y-4">
-          <Link href="/admin" className="block px-4 py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg">
-            📦 Quản lý Đơn Hàng
+          <Link href="/admin" className="block px-4 py-3 bg-linear-to-r from-blue-600 to-indigo-600 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition transform hover:translate-x-1">
+            📦 Tổng Quan & Đơn Hàng
           </Link>
-          <button className="block w-full text-left px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition cursor-not-allowed opacity-50">
+          <Link href="/admin/products" className="block px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition">
             👕 Quản lý Sản Phẩm
-          </button>
+          </Link>
           <button className="block w-full text-left px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition cursor-not-allowed opacity-50">
             👥 Quản lý Users
           </button>
         </nav>
+        
+        <div className="absolute bottom-10 left-6 right-6">
+           <Link href="/" className="block text-center px-4 py-3 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl font-bold transition text-sm uppercase tracking-widest">
+            ← Về Cửa Hàng
+          </Link>
+        </div>
       </div>
 
-      {/* Vùng Nội Dung Chính Bên Phải */}
+      {/* Main Content */}
       <div className="flex-1 p-8 md:p-12 overflow-y-auto">
-        <div className="flex justify-between items-center mb-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Tổng Trạm Đơn Hàng</h1>
-          <span className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm">
-            Admin: {user.username}
-          </span>
+        
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Trạm Điều Hành Tối Cao</h1>
+            <p className="text-slate-500 font-medium mt-1">Chào mừng Chủ Tịch trở lại! Đây là tình hình kinh doanh hôm nay.</p>
+          </div>
+          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-200 font-bold text-slate-600 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            Hệ thống đang hoạt động
+          </div>
         </div>
 
-        {loading && allOrders.length === 0 ? (
-          <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div></div>
-        ) : (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-gray-100 text-slate-600 text-sm uppercase tracking-wider">
-                  <th className="p-5 font-black">Mã Đơn</th>
-                  <th className="p-5 font-black">Khách Hàng</th>
-                  <th className="p-5 font-black">Tổng Tiền</th>
-                  <th className="p-5 font-black">Trạng Thái</th>
-                  <th className="p-5 font-black text-center">Hành Động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {allOrders.map((order) => {
-                  const isEditing = order._id === editingOrderId;
-                  
-                  return (
-                    <tr key={order._id} className="hover:bg-slate-50 transition">
-                      <td className="p-5 text-sm font-bold text-gray-700">
-                        #{order._id.substring(order._id.length - 6).toUpperCase()}
-                      </td>
-                      <td className="p-5 text-sm text-gray-600 font-medium">
-                        {typeof order.user === 'object' ? (order.user?.username || order.user?._id) : order.user}
-                      </td>
-                      <td className="p-5 text-base font-black text-red-600">
-                        {formatPrice(order.totalAmount)}
-                      </td>
+        {/* 🚀 BẢNG ĐIỀU KHIỂN THỐNG KÊ (DASHBOARD) */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            
+            {/* Card 1: Doanh Thu */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">💰</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">TỔNG DOANH THU</h3>
+                </div>
+                <div className="text-3xl font-black text-slate-900 truncate" title={formatPrice(stats.totalRevenue)}>
+                  {formatPrice(stats.totalRevenue)}
+                </div>
+              </div>
+            </div>
 
-                      <td className="p-5">
-                        {isEditing ? (
-                          <select 
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border outline-none focus:ring-2 focus:ring-blue-200 ${getStatusColor(selectedStatus)}`}
-                          >
-                            {availableStatuses.map(status => (
-                              <option key={status} value={status} className="bg-white text-gray-800 font-sans">
-                                {getStatusText(status)}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.orderStatus)}`}>
-                            {getStatusText(order.orderStatus)}
-                          </span>
-                        )}
-                      </td>
+            {/* Card 2: Tổng Đơn Hàng */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-xl">📦</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">TỔNG ĐƠN HÀNG</h3>
+                </div>
+                <div className="text-4xl font-black text-slate-900">
+                  {stats.totalOrders} <span className="text-lg text-slate-400 font-bold">đơn</span>
+                </div>
+              </div>
+            </div>
 
-                      <td className="p-5 text-center">
-                        {isEditing ? (
-                          <div className="flex items-center justify-center space-x-2">
-                            <button 
-                              onClick={() => handleSaveStatus(order._id)}
-                              className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
-                            >
-                              Lưu
-                            </button>
-                            <button 
-                              onClick={cancelEditing}
-                              className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-lg text-xs font-bold transition"
-                            >
-                              Hủy
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center space-x-2">
-                            <button 
-                              onClick={() => startEditing(order)}
-                              className="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
-                            >
-                              Cập nhật
-                            </button>
-                            {/* NÚT XÓA MỚI THÊM NÈ */}
-                            <button 
-                              onClick={() => handleDeleteOrder(order._id)}
-                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Card 3: Chờ Xử Lý */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-24 h-24 bg-orange-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl">⏳</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">CẦN XỬ LÝ GẤP</h3>
+                </div>
+                <div className="text-4xl font-black text-orange-600">
+                  {stats.processing} <span className="text-lg text-slate-400 font-bold">đơn</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Thành Công */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-24 h-24 bg-green-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center text-xl">✅</div>
+                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">ĐÃ GIAO THÀNH CÔNG</h3>
+                </div>
+                <div className="text-4xl font-black text-green-600">
+                  {stats.delivered} <span className="text-lg text-slate-400 font-bold">đơn</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
-      </div>
 
+        {/* DANH SÁCH ĐƠN HÀNG */}
+        <div className="bg-white rounded-4xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
+          <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h2 className="text-xl font-black text-slate-800">DANH SÁCH ĐƠN HÀNG</h2>
+            <button onClick={fetchAllOrders} className="text-blue-600 hover:text-blue-800 font-bold text-sm bg-blue-50 px-4 py-2 rounded-lg transition flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Làm mới
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-32"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div></div>
+          ) : orders.length === 0 ? (
+            <div className="p-32 text-center">
+              <div className="text-6xl mb-4 grayscale opacity-40">🕸️</div>
+              <h2 className="text-2xl font-black text-gray-800 tracking-tight">Chưa có ai mở hàng!</h2>
+              <p className="text-slate-500 mt-2 font-medium">Đang móm, chờ khách chốt đơn thôi Chủ Tịch ơi.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white border-b-2 border-slate-100 text-slate-400 text-xs uppercase tracking-widest">
+                    <th className="p-6 font-black">Mã Đơn / Ngày</th>
+                    <th className="p-6 font-black">Khách Hàng</th>
+                    <th className="p-6 font-black">Sản Phẩm</th>
+                    <th className="p-6 font-black">Tổng Tiền</th>
+                    <th className="p-6 font-black text-center">Trạng Thái & Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {orders.map((order) => {
+                    // 🚀 ĐOẠN NÀY LÀ CÚ FIX CHÍ MẠNG 🚀
+                    // Dò tìm thông tin bằng mọi giá, nếu shippingAddress trống thì lôi thông tin User ra xài tạm!
+                    const customerName = order.shippingAddress?.fullName || order.shippingAddress?.name || order.user?.username || order.user?.name || order.fullName || 'Khách Vãng Lai';
+                    const customerPhone = order.shippingAddress?.phone || order.phone || order.user?.phone || 'N/A';
+                    const customerAddress = order.shippingAddress?.address || order.address || 'N/A';
+
+                    return (
+                    <tr key={order._id} className="hover:bg-slate-50/80 transition-colors duration-200">
+                      
+                      <td className="p-6">
+                        <div className="text-sm font-black text-slate-800 mb-1">
+                          #{order._id.substring(order._id.length - 6).toUpperCase()}
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium">
+                          {new Date(order.createdAt).toLocaleString('vi-VN')}
+                        </div>
+                      </td>
+
+                      <td className="p-6">
+                        <div className="text-sm font-bold text-blue-600 mb-1">
+                          {customerName}
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium flex flex-col gap-1">
+                          <span>📞 {customerPhone}</span>
+                          <span className="line-clamp-1" title={customerAddress}>📍 {customerAddress}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-6 text-sm text-slate-600 font-medium">
+                        <div className="flex items-center gap-2 bg-slate-100 w-max px-3 py-1.5 rounded-lg">
+                          <span className="text-lg">📦</span>
+                          <span className="font-bold text-slate-800">{order.orderItems?.length || order.items?.length || 0} món</span>
+                        </div>
+                      </td>
+
+                      <td className="p-6">
+                        <div className="text-base font-black text-slate-900">
+                          {formatPrice(order.totalPrice || order.totalAmount || 0)}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 bg-slate-100 inline-block px-2 py-0.5 rounded">
+                          {order.paymentMethod === 'COD' ? 'Thanh toán COD' : 'Online'}
+                        </div>
+                      </td>
+
+                      <td className="p-6 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <select
+                            disabled={updatingId === order._id}
+                            value={order.orderStatus || order.status || 'Processing'}
+                            onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                            className={`text-xs border rounded-xl px-3 py-2 font-black tracking-wide uppercase outline-none cursor-pointer shadow-sm transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 ${getStatusColor(order.orderStatus || order.status)}`}
+                          >
+                            <option value="Processing">⏳ Đang xử lý</option>
+                            <option value="Shipping">🚚 Đang giao hàng</option>
+                            <option value="Delivered">✅ Đã giao xong</option>
+                            <option value="Cancelled">❌ Hủy đơn</option>
+                          </select>
+                          
+                          <button 
+                            onClick={() => handleDeleteOrder(order._id)}
+                            className="text-slate-400 hover:text-red-500 text-xs font-bold transition mt-1 underline decoration-transparent hover:decoration-red-500 underline-offset-4"
+                          >
+                            Xóa vĩnh viễn
+                          </button>
+                        </div>
+                      </td>
+                      
+                    </tr>
+                  )})}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }

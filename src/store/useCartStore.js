@@ -6,33 +6,37 @@ const useCartStore = create(
     (set, get) => ({
       cart: [],
 
-      // Chiêu 1: Thêm đồ vô giỏ (Cũ)
+      // 🚀 Chiêu 1: Thêm đồ vô giỏ (Đã bọc thép ID)
       addToCart: (product) => {
         const currentCart = get().cart;
-        const existingItem = currentCart.find(item => item._id === product._id);
+        // Bắt mọi thể loại ID
+        const targetId = product._id || product.id; 
+        
+        const existingItem = currentCart.find(item => (item._id || item.id) === targetId);
+        
         if (existingItem) {
           set({
             cart: currentCart.map(item => 
-              item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+              (item._id || item.id) === targetId ? { ...item, quantity: item.quantity + 1 } : item
             )
           });
         } else {
-          set({ cart: [...currentCart, { ...product, quantity: 1 }] });
+          // Lưu luôn cả _id để lúc Checkout gọi cho dễ
+          set({ cart: [...currentCart, { ...product, _id: targetId, quantity: 1 }] });
         }
       },
 
-      // MỚI - Chiêu 3: Xóa hẳn 1 món khỏi giỏ
+      // 🚀 Chiêu 3: Xóa hẳn 1 món khỏi giỏ (Bọc thép)
       removeFromCart: (productId) => {
-        set({ cart: get().cart.filter(item => item._id !== productId) });
+        set({ cart: get().cart.filter(item => (item._id || item.id) !== productId) });
       },
 
-      // MỚI - Chiêu 4: Tăng / Giảm số lượng (+ / -)
+      // 🚀 Chiêu 4: Tăng / Giảm số lượng (Bọc thép)
       updateQuantity: (productId, amount) => {
         set({
           cart: get().cart.map(item => {
-            if (item._id === productId) {
+            if ((item._id || item.id) === productId) {
               const newQuantity = item.quantity + amount;
-              // Bắt lỗi: Không cho số lượng tụt xuống dưới 1
               return { ...item, quantity: newQuantity > 0 ? newQuantity : 1 };
             }
             return item;
@@ -40,12 +44,18 @@ const useCartStore = create(
         });
       },
 
-      // Chiêu 2: Đếm tổng số món (Cũ)
+      // Chiêu 2: Đếm tổng số món
       getTotalItems: () => {
         return get().cart.reduce((total, item) => total + item.quantity, 0);
       },
 
-      // MỚI - Chiêu 5: Quét sạch giỏ hàng sau khi chốt đơn (Dành cho trang Checkout)
+      // Chiêu 6: Tính Tổng Tiền Giỏ Hàng
+      getCartTotal: () => {
+        return get().cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+      },
+
+      // Chiêu 5: Quét sạch giỏ hàng 
+      // (Đã được gọi bên Navbar lúc Đăng Xuất và bên Checkout lúc chốt đơn thành công)
       clearCart: () => {
         set({ cart: [] });
       }

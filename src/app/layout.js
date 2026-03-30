@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "../components/Navbar"; // <-- Tui import cái Navbar vô đây nè ní
+import Navbar from "../components/Navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,23 +13,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Cửa Hàng Của Phát 🚀", // Tên hiển thị trên tab trình duyệt
-  description: "Đồ án E-Commerce siêu cấp VIP Pro",
+  title: "FAST.SHOP 🚀 | Chốt Đơn Siêu Tốc", // Tên hiển thị trên tab trình duyệt
+  description: "Đồ án E-Commerce siêu cấp VIP Pro của Chủ Tịch Phát. Mua sắm thả ga, không lo về giá!",
+  // Thêm cái này để gửi link qua Zalo/FB nó hiện thẻ đẹp trai
+  openGraph: {
+    title: 'FAST.SHOP 🚀 | Chốt Đơn Siêu Tốc',
+    description: 'Đồ án E-Commerce siêu cấp VIP Pro. Mua sắm thả ga!',
+    siteName: 'FAST.SHOP',
+    locale: 'vi_VN',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="vi" // 🇻🇳 Khẳng định chủ quyền tiếng Việt
+      data-scroll-behavior="smooth" // 🚀 Bùa chống cảnh báo vàng của Next.js
+      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-200 selection:text-blue-900">
         
         {/* Thanh Menu dính chặt ở trên cùng */}
         <Navbar />
 
         {/* Nội dung các trang (Trang chủ, Giỏ hàng...) sẽ chui vô đây */}
-        <main className="grow">{children}</main>
+        <main className="grow flex flex-col">{children}</main>
 
       </body>
     </html>

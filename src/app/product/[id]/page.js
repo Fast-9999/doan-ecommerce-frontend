@@ -1,95 +1,383 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import axios from "axios";
-import useCartStore from "../../../store/useCartStore"; // <-- Import bí kíp Zustand vô đây
+import useCartStore from "../../../store/useCartStore"; 
+import useAuthStore from "../../../store/useAuthStore";
+import Footer from "../../../components/Footer";
 
 export default function ProductDetail() {
-  const params = useParams(); // Lấy các tham số từ URL
-  const { id } = params; // Lôi cái ID ra xài
+  const { id } = useParams(); 
+  const router = useRouter();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
 
-  // Lôi cái hàm addToCart từ trong kho ra xài
-  const addToCart = useCartStore((state) => state.addToCart);
+  const { user } = useAuthStore();
+  const [reviews, setReviews] = useState([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { addToCart } = useCartStore();
 
   useEffect(() => {
     if (id) {
-      // Gọi API lấy chi tiết 1 sản phẩm theo ID
-      axios.get(`https://doan-ecommerce-backend.vercel.app/api/v1/products/${id}`)
-        .then((res) => {
-          setProduct(res.data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Lỗi lấy chi tiết:", err);
-          setLoading(false);
-        });
+      fetchProductData();
+      fetchReviews();
     }
   }, [id]);
 
-  const formatPrice = (price) => {
-    return price?.toLocaleString('vi-VN') + " VNĐ";
+  const fetchProductData = async () => {
+    try {
+      const res = await axios.get(`https://doan-ecommerce-backend.vercel.app/api/v1/products/${id}`);
+      let data = res.data;
+      if (data && typeof data === 'object' && !data._id) {
+         data = data.data || data.product || data.result || data;
+      }
+      setProduct(data);
+    } catch (err) {
+      console.error("Lỗi lấy chi tiết:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) return <div className="text-center p-20 text-xl font-bold animate-pulse text-blue-600">Đang tải hàng, đợi xíu nha Phát... ⏳</div>;
-  if (!product) return <div className="text-center p-20 text-xl font-bold text-red-500">Trời ơi! Không tìm thấy sản phẩm này! 😢</div>;
+  const fetchReviews = async () => {
+    try {
+      const res = await axios.get(`https://doan-ecommerce-backend.vercel.app/api/v1/reviews/product/${id}`);
+      if (res.data.success) {
+        setReviews(res.data.reviews);
+      }
+    } catch (err) {
+      console.error("Lỗi lấy reviews:", err);
+    }
+  };
+
+  const formatPrice = (price) => price?.toLocaleString('vi-VN') + " VNĐ";
+
+  const handleIncrease = () => setQuantity(q => q + 1);
+  const handleDecrease = () => setQuantity(q => (q > 1 ? q - 1 : 1));
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    const cartItem = {
+      _id: product._id,
+      title: product.title || product.name,
+      price: product.price,
+      image: product.image || (product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/600x600?text=Chua+Co+Anh"),
+    };
+
+    for(let i = 0; i < quantity; i++) {
+       addToCart(cartItem);
+    }
+    alert(`🛒 Đã ném ${quantity} món "${cartItem.title}" vào giỏ hàng!`);
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart();
+    router.push("/cart"); 
+  };
+
+  // 🚀 Hàm gửi đánh giá (UPDATE: BẺ KHÓA TOKEN LẤY ID)
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    
+    // 1. Quét Token và User từ mọi ngóc ngách trong bộ nhớ
+    let currentUser = (user && Object.keys(user).length > 0) ? user : null;
+    let currentToken = user?.token || "";
+
+    if (!currentUser || !currentToken) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        try {
+          const item = JSON.parse(localStorage.getItem(key));
+          if (item?.state?.user) currentUser = item.state.user;
+          if (item?.state?.token) currentToken = item.state.token;
+        } catch (error) {}
+      }
+    }
+
+    if (!currentToken) currentToken = localStorage.getItem("token") || "";
+
+    // 2. Tìm ID theo cách thông thường
+    let userId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.data?._id;
+
+    // 3. TUYỆT KỸ: Nếu vẫn không có ID, tự động bẻ khóa JWT Token để moi ID ra!
+    if (!userId && currentToken) {
+      try {
+        const payload = JSON.parse(atob(currentToken.split('.')[1])); // Bẻ khóa phần ruột của Token
+        userId = payload._id || payload.id || payload.userId;
+        console.log("🛠️ Đã dùng tuyệt kỹ lấy được ID từ Token:", userId);
+      } catch (error) {
+        console.log("Token không hợp lệ để bẻ khóa.");
+      }
+    }
+
+    // 4. Chốt chặn cuối cùng
+    if (!userId) {
+      alert("Hệ thống vẫn không tìm thấy tài khoản của ông. Ní thử xóa lịch sử web rồi đăng nhập lại xem!");
+      console.log("Dữ liệu User hiện tại:", currentUser);
+      return;
+    }
+
+    if (!comment.trim()) {
+      alert("Nhập vài chữ review cho xôm tụ đi ní ơi!");
+      return;
+    }
+
+    // 5. Gửi lên mây
+    try {
+      setIsSubmitting(true);
+      
+      const res = await axios.post("https://doan-ecommerce-backend.vercel.app/api/v1/reviews", 
+        {
+          product: id,
+          user: userId,
+          rating,
+          comment
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${currentToken}` 
+          }
+        }
+      );
+
+      if (res.data.success || res.status === 201 || res.status === 200) {
+        alert("🎉 Đã gửi đánh giá thành công rực rỡ!");
+        setComment("");
+        setRating(5);
+        fetchReviews(); // Tự động làm mới danh sách bình luận
+      }
+    } catch (error) {
+      console.error("Lỗi gửi review:", error);
+      const errorMsg = error.response?.data?.message || error.message;
+      alert(`Huhu gửi xịt rồi: ${errorMsg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-slate-900"></div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-center p-6">
+        <div className="text-8xl mb-6">🤷‍♂️</div>
+        <h1 className="text-3xl font-black text-slate-800 mb-4">Sản phẩm đi lạc rồi!</h1>
+        <Link href="/products" className="bg-slate-900 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-blue-600 transition-colors">
+          Quay lại cửa hàng
+        </Link>
+      </div>
+    );
+  }
+
+  const avgRating = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length).toFixed(1) : 0;
+  // Biến kiểm tra xem user có thực sự đăng nhập không (chống vụ object rỗng {})
+  const isUserValid = (user && Object.keys(user).length > 0) || (typeof window !== 'undefined' && localStorage.getItem("token"));
 
   return (
-    <div className="max-w-6xl mx-auto p-6 md:p-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-        
-        {/* Cột trái: Hình ảnh bự */}
-        <div className="bg-gray-50 rounded-2xl overflow-hidden flex items-center justify-center p-4">
-          <img 
-            src={product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/600x600?text=Chua+Co+Anh"} 
-            alt={product.title} 
-            className="w-full h-auto object-cover rounded-xl hover:scale-105 transition-transform duration-500"
-          />
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-slate-100 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-sm font-bold text-slate-400 flex items-center gap-2">
+          <Link href="/" className="hover:text-slate-900 transition-colors">TRANG CHỦ</Link>
+          <span>/</span>
+          <Link href="/products" className="hover:text-slate-900 transition-colors">SẢN PHẨM</Link>
+          <span>/</span>
+          <span className="text-slate-900 line-clamp-1 uppercase">{product.title || product.name}</span>
         </div>
-
-        {/* Cột phải: Thông tin chi tiết */}
-        <div className="flex flex-col justify-center">
-          <span className="text-sm font-black text-blue-500 mb-3 tracking-widest uppercase bg-blue-50 w-max px-3 py-1 rounded-full">
-            {product.category || "Hàng Mới Về"}
-          </span>
-          
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4 leading-tight">
-            {product.title}
-          </h1>
-          
-          <div className="text-3xl md:text-4xl font-black text-red-600 mb-8">
-            {formatPrice(product.price)}
-          </div>
-          
-          <div className="bg-gray-50 p-6 rounded-2xl mb-8 border border-gray-100">
-            <h3 className="font-bold text-gray-900 mb-3 text-lg">Mô tả sản phẩm:</h3>
-            <p className="text-gray-600 leading-relaxed whitespace-pre-line text-md">
-              {product.description}
-            </p>
-          </div>
-
-          {/* Nút hành động */}
-          <div className="flex gap-4 mt-auto">
-            {/* Đã thêm sự kiện onClick vô nút này 👇 */}
-            <button 
-              onClick={() => {
-                addToCart(product); // Quăng cục data sản phẩm vô giỏ
-                alert("Đã quăng vô giỏ hàng thành công nha ní! Lên góc phải check liền!"); // Báo cho khách biết
-              }}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex justify-center items-center gap-2 text-lg"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-              </svg>
-              MÚC NGAY CHO NÓNG
-            </button>
-          </div>
-        </div>
-        
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        
+        {/* KHỐI 1: THÔNG TIN SẢN PHẨM */}
+        <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden flex flex-col lg:flex-row mb-12">
+          
+          <div className="lg:w-1/2 p-8 md:p-12 bg-slate-50 flex items-center justify-center relative group">
+            <span className="absolute top-6 left-6 bg-red-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg z-10 shadow-sm">
+              MỚI NHẤT
+            </span>
+            <img 
+              src={product.image || (product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/600x600?text=Chua+Co+Anh")} 
+              alt={product.title || product.name}
+              className="w-full max-w-md aspect-square object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+            />
+          </div>
+
+          <div className="lg:w-1/2 p-8 md:p-12 flex flex-col">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md tracking-widest uppercase">
+                {product.category?.name || product.category || "CÔNG NGHỆ"}
+              </span>
+              {reviews.length > 0 && (
+                <span className="flex items-center text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-md">
+                  <span className="text-yellow-400 mr-1">★</span> {avgRating} ({reviews.length} đánh giá)
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-6">
+              {product.title || product.name}
+            </h1>
+            
+            <div className="text-3xl md:text-4xl font-black text-red-600 mb-8 pb-8 border-b border-slate-100">
+              {formatPrice(product.price)}
+            </div>
+
+            <div className="text-slate-600 font-medium leading-relaxed mb-10 text-justify">
+              <p>{product.description || "Sản phẩm này hiện chưa có mô tả chi tiết. Chốt đơn ngay kẻo lỡ!"}</p>
+            </div>
+
+            <div className="mt-auto space-y-6">
+              <div>
+                <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">SỐ LƯỢNG</span>
+                <div className="flex items-center w-max bg-slate-50 rounded-xl border border-slate-200 p-1">
+                  <button onClick={handleDecrease} className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition">-</button>
+                  <span className="w-14 text-center font-black text-slate-900">{quantity}</span>
+                  <button onClick={handleIncrease} className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition">+</button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button 
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-white border-2 border-slate-900 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-900 hover:text-white transition-colors duration-300 shadow-sm flex justify-center items-center gap-2 tracking-widest uppercase text-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  THÊM VÀO GIỎ
+                </button>
+                <button 
+                  onClick={handleBuyNow}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors duration-300 tracking-widest uppercase text-sm"
+                >
+                  MUA NGAY
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 🚀 KHỐI 2: ĐÁNH GIÁ VÀ NHẬN XÉT (REVIEWS) */}
+        <div className="bg-white rounded-4xl shadow-sm border border-slate-100 p-8 md:p-12">
+          <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight uppercase border-b border-slate-100 pb-4">
+            Khách Hàng Nói Gì? ({reviews.length})
+          </h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            
+            {/* Cột form viết đánh giá */}
+            <div className="lg:col-span-1">
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 sticky top-24">
+                <h3 className="text-lg font-black text-slate-800 mb-4">Viết đánh giá của bạn</h3>
+                
+                {isUserValid ? (
+                  <form onSubmit={handleSubmitReview} className="space-y-5">
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Chấm điểm sao</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setRating(star)}
+                            className={`text-2xl focus:outline-none transition-transform hover:scale-125 ${rating >= star ? 'text-yellow-400' : 'text-slate-300'}`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Trải nghiệm của bạn</label>
+                      <textarea
+                        rows="4"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Sản phẩm xịn xò, admin đẹp trai..."
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                      ></textarea>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="w-full bg-slate-900 hover:bg-blue-600 text-white font-black py-3 rounded-xl uppercase tracking-widest text-xs transition-colors disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Đang gửi..." : "GỬI ĐÁNH GIÁ"}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="text-center py-6">
+                    <div className="text-4xl mb-3">🔒</div>
+                    <p className="text-sm font-medium text-slate-500 mb-4">Bạn phải đăng nhập để chém gió nha!</p>
+                    <Link href="/login" className="inline-block bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white font-bold px-6 py-2 rounded-lg transition-colors text-sm">
+                      Đăng nhập ngay
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Cột danh sách bình luận */}
+            <div className="lg:col-span-2 space-y-6">
+              {reviews.length === 0 ? (
+                <div className="text-center py-16 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="text-5xl mb-4 grayscale opacity-40">📝</div>
+                  <h3 className="text-lg font-bold text-slate-800">Chưa có đánh giá nào!</h3>
+                  <p className="text-slate-500 mt-2 text-sm">Hãy là người đầu tiên bóc tem sản phẩm này.</p>
+                </div>
+              ) : (
+                reviews.map((rv, idx) => (
+                  <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex gap-4">
+                    
+                    <img 
+                      src={rv.user?.avatarUrl || "https://i.stack.imgur.com/l60Hf.png"} 
+                      alt="avatar" 
+                      className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-sm shrink-0"
+                    />
+                    
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-1">
+                        <div>
+                          <h4 className="font-black text-slate-800 text-sm">{rv.user?.username || rv.user?.name || "Người Dùng Bí Ẩn"}</h4>
+                          <div className="flex text-yellow-400 text-sm mt-0.5">
+                            {"★".repeat(rv.rating)}{"☆".repeat(5 - rv.rating)}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {new Date(rv.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 font-medium text-sm mt-2 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 inline-block">
+                        {rv.comment}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <Footer />
     </div>
   );
 }

@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+/* 🚀 Tút tát thêm cho web mượt mà */
+@layer base {
+  html {
+    /* Bấm link nó trượt mượt mà chứ không giật cái đùng */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    /* Khử răng cưa cho font chữ sắc nét hơn (chuẩn Mac) */
+    @apply antialiased bg-slate-50 text-slate-900;
+  }
+}
+
+/* 🎨 "Độ" lại cái thanh cuộn (Scrollbar) cho giống web VIP */
+::-webkit-scrollbar {
+  width: 8px; /* Làm thanh cuộn ốm lại */
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc; /* Màu nền rãnh trượt (slate-50) */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Màu cục lăn (slate-300) */
+  border-radius: 10px; /* Bo góc tròn trịa */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* Khi rê chuột vô đổi màu tối hơn (slate-400) */
+}
