@@ -10,7 +10,7 @@ import useAuthStore from "../../../store/useAuthStore";
 export default function AdminUsers() {
   const { user, token } = useAuthStore();
   const router = useRouter();
-  
+
   const [isClient, setIsClient] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export default function AdminUsers() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
-      
+
       {/* 🚀 SIDEBAR ADMIN */}
       <div className="w-64 bg-slate-900 text-white p-6 shadow-xl hidden md:flex flex-col shrink-0 relative z-20">
         <h2 className="text-2xl font-black mb-10 tracking-wider">
@@ -101,9 +101,9 @@ export default function AdminUsers() {
             🎟️ Quản lý Vouchers
           </Link>
         </nav>
-        
+
         <div className="mt-auto">
-           <Link href="/" className="block text-center px-4 py-3 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl font-bold transition text-sm uppercase tracking-widest">
+          <Link href="/" className="block text-center px-4 py-3 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl font-bold transition text-sm uppercase tracking-widest">
             ← Về Cửa Hàng
           </Link>
         </div>
@@ -111,7 +111,7 @@ export default function AdminUsers() {
 
       {/* Main Content */}
       <div className="flex-1 p-8 md:p-12 overflow-y-auto">
-        
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hồ Sơ Nhân Sự</h1>
@@ -167,61 +167,62 @@ export default function AdminUsers() {
                     }
 
                     return (
-                    <tr key={u._id} className="hover:bg-slate-50/80 transition-colors duration-200">
-                      
-                      <td className="p-6 text-center">
-                        <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shadow-sm bg-blue-50 mx-auto flex items-center justify-center font-black text-blue-600 text-xl uppercase">
-                          {u.avatar ? (
-                            <img src={u.avatar} alt={u.username} className="w-full h-full object-cover" />
-                          ) : (
-                            u.username ? u.username.charAt(0) : "U"
-                          )}
-                        </div>
-                      </td>
+                      <tr key={u._id} className="hover:bg-slate-50/80 transition-colors duration-200">
 
-                      <td className="p-6">
-                        <div className="text-sm font-black text-slate-800">
-                          {u.username || u.name || "Khách Vãng Lai"}
-                        </div>
-                        <div className="text-xs text-slate-400 font-medium mt-1 truncate max-w-xs">
-                          📧 {u.email || "Không có Email"}
-                        </div>
-                        {u.phone && (
-                          <div className="text-xs text-slate-400 font-medium mt-0.5">
-                            📞 {u.phone}
+                        <td className="p-6 text-center">
+                          <div className="w-12 h-12 rounded-full border border-slate-200 overflow-hidden shadow-sm bg-blue-50 mx-auto flex items-center justify-center font-black text-blue-600 text-xl uppercase">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.username} className="w-full h-full object-cover" />
+                            ) : (
+                              u.username ? u.username.charAt(0) : "U"
+                            )}
                           </div>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="p-6">
-                        <span className={`px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase inline-block ${roleColor}`}>
-                          {roleDisplay}
-                        </span>
-                      </td>
+                        <td className="p-6">
+                          <div className="text-sm font-black text-slate-800">
+                            {u.username || u.name || "Khách Vãng Lai"}
+                          </div>
+                          <div className="text-xs text-slate-400 font-medium mt-1 truncate max-w-xs">
+                            📧 {u.email || "Không có Email"}
+                          </div>
+                          {u.phone && (
+                            <div className="text-xs text-slate-400 font-medium mt-0.5">
+                              📞 {u.phone}
+                            </div>
+                          )}
+                        </td>
 
-                      <td className="p-6">
-                        <div className="text-sm font-bold text-slate-600">
-                          {new Date(u.createdAt).toLocaleDateString('vi-VN')}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">
-                          {new Date(u.createdAt).toLocaleTimeString('vi-VN')}
-                        </div>
-                      </td>
+                        <td className="p-6">
+                          <span className={`px-3 py-1.5 rounded-lg text-xs font-black tracking-wide uppercase inline-block ${roleColor}`}>
+                            {roleDisplay}
+                          </span>
+                        </td>
 
-                      <td className="p-6 text-center">
-                        <button 
-                          onClick={() => handleDeleteUser(u._id || u.id)} 
-                          className="p-2 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition duration-200"
-                          title="Trảm thị chúng"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
-                      </td>
+                        <td className="p-6">
+                          <div className="text-sm font-bold text-slate-600">
+                            {new Date(u.createdAt).toLocaleDateString('vi-VN')}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">
+                            {new Date(u.createdAt).toLocaleTimeString('vi-VN')}
+                          </div>
+                        </td>
 
-                    </tr>
-                  )})}
+                        <td className="p-6 text-center">
+                          <button
+                            onClick={() => handleDeleteUser(u._id || u.id)}
+                            className="p-2 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-xl transition duration-200"
+                            title="Trảm thị chúng"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </td>
+
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

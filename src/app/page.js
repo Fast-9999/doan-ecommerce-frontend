@@ -17,6 +17,13 @@ const floatAnimationCss = `
     0%, 100% { transform: translateY(0px) rotate(-12deg); }
     50% { transform: translateY(-20px) rotate(-8deg); }
   }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 `;
 
 export default function HomePage() {
@@ -30,10 +37,10 @@ export default function HomePage() {
 
   // 🚀 STATE CHO HIỆU ỨNG MÁY ĐÁNH CHỮ
   const phrases = [
-    "Mua Sắm Tương Lai",
     "Săn Deal Thần Tốc",
     "Chốt Đơn Mỏi Tay",
-    "Hàng Chuẩn VIP Pro"
+    "Hàng Chuẩn VIP Pro",
+    "Phong Cách Dẫn Đầu"
   ];
   const [typedText, setTypedText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -48,19 +55,19 @@ export default function HomePage() {
     let timer;
 
     if (isDeleting) {
-      timer = setTimeout(() => setTypedText(fullText.substring(0, typedText.length - 1)), 50);
+      timer = setTimeout(() => setTypedText(fullText.substring(0, typedText.length - 1)), 40);
     } else {
-      timer = setTimeout(() => setTypedText(fullText.substring(0, typedText.length + 1)), 100);
+      timer = setTimeout(() => setTypedText(fullText.substring(0, typedText.length + 1)), 80);
     }
 
     if (!isDeleting && typedText === fullText) {
       clearTimeout(timer);
-      timer = setTimeout(() => setIsDeleting(true), 2000);
+      timer = setTimeout(() => setIsDeleting(true), 2500);
     } else if (isDeleting && typedText === "") {
       clearTimeout(timer);
       setIsDeleting(false);
       setLoopNum(loopNum + 1);
-      timer = setTimeout(() => { }, 500);
+      timer = setTimeout(() => { }, 300);
     }
 
     return () => clearTimeout(timer);
@@ -82,12 +89,16 @@ export default function HomePage() {
       }
 
       if (Array.isArray(data)) {
-        setAllProducts(data);
-        const extractedCategories = ["Tất cả", ...new Set(data.map(p => {
+        // Đảo ngược để đưa hàng mới lên đầu
+        const reversedData = data.reverse();
+        setAllProducts(reversedData);
+
+        const extractedCategories = ["Tất cả", ...new Set(reversedData.map(p => {
           return typeof p.category === 'object' ? p.category?.name : p.category;
         }).filter(Boolean))];
+
         setCategories(extractedCategories);
-        setFilteredProducts(data);
+        setFilteredProducts(reversedData);
       }
     } catch (error) {
       console.error("Lỗi lấy sản phẩm:", error);
@@ -123,211 +134,223 @@ export default function HomePage() {
       image: product.image || (product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/300"),
       quantity: 1
     });
-    toast.success(`Đã ném "${product.title || product.name}" vào giỏ hàng!`, {
+    toast.success(`Đã ném "${product.title || product.name}" vào giỏ!`, {
       icon: '🛒',
-      duration: 3000,
       style: { borderRadius: '12px', background: '#0f172a', color: '#fff', fontWeight: 'bold' }
     });
   };
 
-  // 🚀 DỮ LIỆU ĐỂ HIỂN THỊ CAM KẾT (TRUST BADGES)
+  // DỮ LIỆU ĐỂ HIỂN THỊ CAM KẾT
   const trustFeatures = [
-    { icon: "🚀", title: "Giao Hàng Hỏa Tốc", desc: "Nhận hàng trong 2h" },
-    { icon: "🛡️", title: "100% Chính Hãng", desc: "Đền gấp 10 nếu Fake" },
+    { icon: "🚀", title: "Giao Hàng Hỏa Tốc", desc: "Nhận ngay trong 2h" },
+    { icon: "🛡️", title: "100% Chính Hãng", desc: "Fake đền gấp 10 lần" },
     { icon: "🔄", title: "Đổi Trả 7 Ngày", desc: "Lỗi là đổi mới liền" },
-    { icon: "🎧", title: "Hỗ Trợ 24/7", desc: "CSKH luôn túc trực" },
+    { icon: "🎧", title: "Hỗ Trợ 24/7", desc: "CSKH trực xuyên đêm" },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* 🚀 INJECT CSS CHUẨN XÁC VÀO DOM */}
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-blue-200">
       <style dangerouslySetInnerHTML={{ __html: floatAnimationCss }} />
 
-      {/* 🚀 BANNER TƯƠNG LAI */}
+      {/* 🚀 HERO BANNER CHUẨN CYBERPUNK */}
       <div className="relative bg-slate-950 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute inset-0 bg-linear-to-br from-indigo-900/50 via-slate-900 to-black opacity-90"></div>
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-blue-600/20 blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-purple-600/20 blur-[120px] pointer-events-none"></div>
+        {/* Lưới Grid Background */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 py-20 md:py-28 z-10 flex flex-col lg:flex-row items-center gap-12">
+        {/* Glowing Orbs */}
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-blue-600/30 blur-[150px] pointer-events-none mix-blend-screen"></div>
+        <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-purple-600/20 blur-[150px] pointer-events-none mix-blend-screen"></div>
+
+        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 z-10 flex flex-col lg:flex-row items-center gap-16">
 
           {/* Cột trái: Text */}
-          <div className="w-full lg:w-1/2 text-center lg:text-left">
-            <span className="inline-block py-1 px-4 rounded-full bg-white/10 border border-white/20 text-blue-300 text-[10px] md:text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-              ✨ Phiên bản Mới Nhất 2026
-            </span>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 tracking-tighter text-white h-32 md:h-40 lg:h-48 flex flex-col justify-center">
-              <span>Trải nghiệm</span>
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 via-indigo-400 to-purple-500 mt-2">
+          <div className="w-full lg:w-1/2 text-center lg:text-left flex flex-col items-center lg:items-start">
+            <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-slate-800/50 border border-slate-700 text-blue-400 text-xs font-black tracking-widest uppercase mb-8 backdrop-blur-md shadow-2xl">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              Phiên Bản Giới Hạn 2026
+            </div>
+
+            <h1 className="text-5xl md:text-7xl font-black mb-8 tracking-tighter text-white leading-[1.1]">
+              Trải Nghiệm <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 h-[1.2em] inline-block">
                 {typedText}
-                <span className="inline-block w-1.5 h-10 md:h-12 lg:h-16 ml-2 bg-blue-500 animate-pulse align-middle rounded-full"></span>
+                <span className="inline-block w-1 md:w-2 h-[0.8em] ml-1 bg-blue-500 animate-pulse align-baseline rounded-full"></span>
               </span>
             </h1>
-            <p className="text-slate-300 mb-8 max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed text-lg">
-              Hệ sinh thái E-Commerce thế hệ mới. Săn deal thần tốc, chốt đơn mượt mà với giao diện chuẩn VIP Pro dành riêng cho Chủ Tịch.
+
+            <p className="text-slate-400 mb-10 max-w-xl font-medium leading-relaxed text-lg md:text-xl">
+              Định hình phong cách Chủ Tịch với hệ sinh thái E-Commerce thế hệ mới. Khám phá hàng ngàn siêu phẩm đang chờ bạn bóc tem.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-              <button onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })} className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-1 uppercase tracking-widest text-sm flex items-center justify-center gap-2">
-                Săn Deal Ngay
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <button onClick={() => window.scrollTo({ top: 900, behavior: 'smooth' })} className="px-8 py-4 bg-white text-slate-900 font-black rounded-2xl shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.5)] transition-all hover:-translate-y-1 uppercase tracking-widest text-sm flex items-center justify-center gap-3 group">
+                VÀO KHO HÀNG
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </button>
             </div>
           </div>
 
           {/* Cột phải: Hình ảnh 3D nổi bật */}
-          <div className="w-full lg:w-1/2 hidden md:flex justify-center relative">
-            {/* 🚀 Đã thay bằng class custom-float-anim chống giật lag */}
-            <div className="relative w-[80%] aspect-square custom-float-anim">
-              {/* Vòng sáng phía sau */}
-              <div className="absolute inset-0 bg-linear-to-tr from-blue-500 to-purple-500 rounded-full blur-[80px] opacity-30"></div>
-              {/* Hình ảnh siêu phẩm */}
+          <div className="w-full lg:w-1/2 hidden lg:flex justify-center relative">
+            <div className="relative w-full max-w-lg aspect-square custom-float-anim">
+              {/* Bệ đỡ phát sáng */}
+              <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-3/4 h-10 bg-blue-500/30 blur-2xl rounded-full"></div>
+
               <img
                 src="https://giaycaosmartmen.com/wp-content/uploads/2020/09/giay-sneaker-la-gi.jpg"
                 alt="Hero Product"
-                className="relative z-10 w-full h-full object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] -rotate-12"
+                className="relative z-10 w-full h-full object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,0.6)] -rotate-12 scale-110"
               />
-              {/* Tag nổi */}
-              <div className="absolute bottom-10 -left-4 z-20 bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl shadow-xl flex items-center gap-3">
-                <div className="bg-red-500 text-white p-2 rounded-xl text-xl font-black">-50%</div>
+
+              {/* Tag Nổi Float */}
+              <div className="absolute top-10 right-0 z-20 bg-slate-900/80 backdrop-blur-xl border border-slate-700 p-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-[bounce_4s_infinite]">
+                <div className="bg-gradient-to-br from-rose-500 to-orange-500 text-white p-3 rounded-xl text-2xl font-black shadow-inner">-50%</div>
                 <div>
-                  <p className="text-white font-black text-sm">Flash Sale</p>
-                  <p className="text-blue-200 text-xs font-bold">Chỉ hôm nay</p>
+                  <p className="text-white font-black text-sm uppercase tracking-widest">Siêu Sale</p>
+                  <p className="text-slate-400 text-xs font-bold">Kết thúc trong 2h</p>
                 </div>
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
       {/* 🚀 KHU VỰC CAM KẾT (TRUST BADGES) */}
-      <div className="max-w-7xl mx-auto px-4 relative z-20 -mt-10 mb-10 w-full">
-        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-100 p-6 md:p-8 grid grid-cols-2 md:grid-cols-4 gap-6 divide-x-0 md:divide-x divide-slate-100">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-12 w-full mb-16">
+        <div className="bg-white/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_rgb(0,0,0,0.08)] border border-slate-100 p-6 lg:p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 divide-x-0 lg:divide-x divide-slate-100">
           {trustFeatures.map((item, idx) => (
-            <div key={idx} className="flex flex-col items-center text-center px-4">
-              <div className="w-14 h-14 bg-slate-50 text-2xl flex items-center justify-center rounded-full mb-3 text-blue-600 border border-slate-100">
+            <div key={idx} className="flex flex-col sm:flex-row items-center text-center sm:text-left px-2 gap-4 group">
+              <div className="w-16 h-16 shrink-0 bg-slate-50 text-3xl flex items-center justify-center rounded-2xl text-blue-600 border border-slate-100 group-hover:scale-110 group-hover:bg-blue-50 group-hover:border-blue-200 transition-all duration-300">
                 {item.icon}
               </div>
-              <h4 className="font-black text-slate-800 text-sm mb-1">{item.title}</h4>
-              <p className="text-xs font-medium text-slate-500">{item.desc}</p>
+              <div>
+                <h4 className="font-black text-slate-900 text-sm md:text-base mb-1 tracking-tight">{item.title}</h4>
+                <p className="text-xs font-medium text-slate-500">{item.desc}</p>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 🚀 KHU VỰC TÌM KIẾM VÀ BỘ LỌC */}
-      <div className="max-w-7xl mx-auto px-4 w-full mb-12">
-        <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 w-full grow pb-24">
 
-          <div className="relative w-full md:w-1/3">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+        {/* 🚀 KHU VỰC TÌM KIẾM VÀ BỘ LỌC KÍNH MỜ */}
+        <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-2 md:p-3 rounded-full shadow-sm border border-slate-200 mb-12">
+
+          <div className="relative w-full md:w-[350px] shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5 text-slate-400">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
             </div>
             <input
               type="text"
-              className="block w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800 placeholder:text-slate-400 transition-all"
-              placeholder="Tìm siêu phẩm..."
+              className="block w-full pl-12 pr-6 py-3.5 bg-slate-50 hover:bg-slate-100 border-none rounded-full text-sm focus:ring-0 outline-none font-bold text-slate-800 placeholder:text-slate-400 transition-colors"
+              placeholder="Tìm kiếm siêu phẩm..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="w-full md:w-2/3 flex overflow-x-auto pb-2 md:pb-0 custom-scrollbar gap-2">
+          <div className="w-full flex overflow-x-auto hide-scrollbar gap-2 pr-2">
             {categories.map((cat, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedCategory(cat)}
-                className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-xs font-black tracking-wide uppercase transition-all shrink-0 ${selectedCategory === cat
-                  ? "bg-slate-900 text-white shadow-md"
-                  : "bg-slate-50 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+                className={`whitespace-nowrap px-6 py-3.5 rounded-full text-xs font-black tracking-widest uppercase transition-all duration-300 shrink-0 ${selectedCategory === cat
+                  ? "bg-slate-900 text-white shadow-md scale-100"
+                  : "bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 scale-95 hover:scale-100"
                   }`}
               >
-                {cat === "Tất cả" ? "🔥 Tất cả" : cat}
+                {cat === "Tất cả" ? "🔥 TẤT CẢ DANH MỤC" : cat}
               </button>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* 🚀 KHU VỰC SẢN PHẨM */}
-      <div className="max-w-7xl mx-auto px-4 w-full grow pb-24">
-        <div className="mb-8 flex justify-between items-end border-l-4 border-blue-600 pl-4">
+        {/* 🚀 KHU VỰC SẢN PHẨM */}
+        <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-              {selectedCategory === "Tất cả" ? "Sản Phẩm Trending" : `${selectedCategory}`}
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight uppercase">
+              {selectedCategory === "Tất cả" ? "Sản Phẩm Đang Hot" : `${selectedCategory}`}
             </h2>
-            <p className="text-slate-500 font-medium text-sm mt-1">Săn ngay kẻo lỡ deal hời Sếp ơi!</p>
+            <p className="text-slate-500 font-medium text-sm mt-2">Cập nhật liên tục những item cháy hàng nhất hệ mặt trời.</p>
           </div>
-          <span className="hidden sm:inline-block text-blue-600 font-black bg-blue-50 px-4 py-2 rounded-xl text-xs uppercase tracking-widest">
+          <span className="text-slate-900 font-black bg-slate-100 px-4 py-2 rounded-xl text-xs uppercase tracking-widest border border-slate-200">
             {filteredProducts.length} Kết quả
           </span>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-            {[...Array(8)].map((_, index) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 lg:gap-8">
+            {[...Array(10)].map((_, index) => (
               <ProductSkeleton key={index} />
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-32 bg-white rounded-4xl border border-slate-100 shadow-sm">
-            <div className="text-7xl mb-6 grayscale opacity-50">🛸</div>
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Vũ trụ này không có sản phẩm!</h3>
-            <p className="text-slate-500 mt-3 font-medium text-lg">Ní thử gõ từ khóa khác hoặc quét radar danh mục "Tất cả" xem sao nha.</p>
+          <div className="text-center py-24 md:py-32 bg-white rounded-[3rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="w-40 h-40 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 border-8 border-white shadow-inner">
+              <div className="text-7xl grayscale opacity-30">🛸</div>
+            </div>
+            <h3 className="text-3xl font-black text-slate-800 tracking-tight mb-4">Vũ Trụ Trống Rỗng!</h3>
+            <p className="text-slate-500 font-medium text-lg max-w-md mx-auto">Không tìm thấy sản phẩm nào khớp với radar của Chủ Tịch. Hãy thử từ khóa khác nhé.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 lg:gap-8">
             {filteredProducts.map((product) => (
               <Link
                 href={`/product/${product._id}`}
                 key={product._id}
-                className="bg-white rounded-3xl shadow-[0_2px_15px_rgb(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 border border-slate-100 overflow-hidden group flex flex-col relative"
+                className="bg-white rounded-[2rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] border border-slate-100 overflow-hidden group flex flex-col relative transition-all duration-500 hover:-translate-y-2"
               >
-                <div className="relative aspect-4/5 bg-slate-50 p-6 overflow-hidden flex items-center justify-center">
-                  {/* Tag góc trái */}
-                  <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                    <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-md">
-                      HOT
-                    </span>
-                  </div>
+                {/* Tag góc trái */}
+                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                  <span className="bg-red-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-sm border border-red-400">
+                    SALE MẠNH
+                  </span>
+                </div>
+
+                <div className="relative aspect-square bg-slate-50 overflow-hidden flex items-center justify-center p-6 border-b border-slate-50">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-100/40 to-purple-100/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"></div>
                   <img
                     src={product.image || (product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/300")}
                     alt={product.title || product.name}
-                    className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 group-hover:rotate-2 transition-transform duration-700 ease-out"
+                    className="relative z-10 w-full h-full object-contain mix-blend-multiply group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-700 ease-out drop-shadow-sm"
                   />
                 </div>
 
-                <div className="p-5 flex flex-col grow bg-white relative z-20">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-md">
+                <div className="p-5 md:p-6 flex flex-col grow bg-white">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-md">
                       {typeof product.category === 'object' ? product.category?.name : product.category || 'Công nghệ'}
-                    </div>
-                    {/* Fake lượt bán cho uy tín */}
-                    <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                      ⭐ 4.9 (1.2k bán)
                     </div>
                   </div>
 
-                  <h3 className="text-base font-bold text-slate-800 mb-3 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-sm md:text-base font-black text-slate-800 mb-2 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
                     {product.title || product.name}
                   </h3>
 
-                  <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100/50">
+                  <div className="mt-auto pt-4 flex items-end justify-between">
                     <div>
-                      <div className="text-[10px] text-slate-400 line-through font-bold mb-0.5">
-                        {/* Fake giá gốc để tôn lên giá giảm */}
+                      {/* Fake giá gốc để buff uy tín */}
+                      <div className="text-[11px] text-slate-400 line-through font-bold mb-0.5">
                         {formatPrice(product.price * 1.2)}
                       </div>
-                      <div className="text-lg font-black text-red-600 tracking-tight">
+                      <div className="text-lg md:text-xl font-black text-rose-600 tracking-tight">
                         {formatPrice(product.price)}
                       </div>
                     </div>
+
+                    {/* Nút thêm giỏ hàng Hover */}
                     <button
                       onClick={(e) => handleAddToCart(e, product)}
-                      className="w-10 h-10 bg-slate-900 text-white rounded-xl hover:bg-blue-600 flex items-center justify-center transition-colors duration-300 shadow-md hover:shadow-blue-500/30 hover:-translate-y-1"
-                      title="Thêm vào giỏ"
+                      className="w-10 h-10 md:w-12 md:h-12 bg-slate-100 text-slate-600 rounded-2xl group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center transition-all duration-300 group-hover:shadow-lg group-hover:shadow-slate-900/30 group-hover:-translate-y-1 shrink-0"
+                      title="Múc ngay"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
