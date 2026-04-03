@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "react-hot-toast";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "../../store/useAuthStore";
@@ -30,7 +31,7 @@ export default function ProfilePage() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Vui lòng chọn file hình ảnh nha ní!");
+      toast.error("Vui lòng chọn file hình ảnh nha ní!");
       return;
     }
 
@@ -52,12 +53,12 @@ export default function ProfilePage() {
 
       if (res.data.success) {
         const newAvatarUrl = res.data.url;
-        alert("🎉 Đổi Avatar thành công rực rỡ!");
+        toast.success("🎉 Đổi Avatar thành công rực rỡ!");
         login({ ...user, avatarUrl: newAvatarUrl });
       }
     } catch (error) {
       console.error("Lỗi upload:", error);
-      alert("Huhu upload xịt rồi, check console thử ní ơi!");
+      toast.error("Huhu upload xịt rồi, check console thử ní ơi!");
       setPreviewImage(user?.avatarUrl || "https://i.stack.imgur.com/l60Hf.png");
     } finally {
       setLoading(false);
@@ -81,7 +82,7 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row gap-8">
           
           {/* CỘT TRÁI: AVATAR & THẺ TÊN */}
-          <div className="md:w-1/3">
+          <div className="md:w-1/3 space-y-6">
             <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden relative group">
               {/* Background gradient nhạt bên trong thẻ */}
               <div className="absolute inset-0 bg-linear-to-b from-blue-50 to-white pointer-events-none"></div>
@@ -132,6 +133,26 @@ export default function ProfilePage() {
 
               </div>
             </div>
+
+            {/* 🚀 NÚT XEM DANH SÁCH HÀNG ĐÃ GIỮ */}
+            <Link 
+              href="/profile/reservations" 
+              className="flex items-center justify-between w-full bg-white border border-slate-200 p-5 rounded-3xl shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300 group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-2xl text-purple-600 group-hover:scale-110 transition-transform">
+                  ⏳
+                </div>
+                <div className="text-left">
+                  <h4 className="font-black text-slate-800">Hàng Đang Giữ</h4>
+                  <p className="text-xs text-slate-500 font-medium">Theo dõi đơn đặt chỗ của bạn</p>
+                </div>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 text-slate-300 group-hover:text-purple-600 group-hover:translate-x-1 transition-all">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </Link>
+
           </div>
 
           {/* CỘT PHẢI: FORM THÔNG TIN (UI Mockup) */}

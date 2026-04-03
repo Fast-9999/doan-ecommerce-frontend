@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/Navbar";
+import ChatBubble from "../components/ChatBubble"; // 🚀 BỔ SUNG: Gọi Bong bóng chat vào đây
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +41,10 @@ export default function RootLayout({ children }) {
 
         {/* Nội dung các trang (Trang chủ, Giỏ hàng...) sẽ chui vô đây */}
         <main className="grow flex flex-col">{children}</main>
+
+        {/* 🚀 XUẤT HIỆN Ở GÓC PHẢI DƯỚI CỦA TẤT CẢ CÁC TRANG */}
+        <ChatBubble />
+        <Toaster position="bottom-right" reverseOrder={false} />
 
       </body>
     </html>

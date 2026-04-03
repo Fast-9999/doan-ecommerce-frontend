@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "react-hot-toast";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import axios from "axios";
@@ -54,7 +55,7 @@ export default function ProductsPage() {
     };
     
     addToCart(cartItem);
-    alert(`🛒 Đã ném "${cartItem.title}" vào giỏ hàng cái vèo!`);
+    toast.success(`🛒 Đã ném "${cartItem.title}" vào giỏ hàng cái vèo!`);
   };
 
   return (

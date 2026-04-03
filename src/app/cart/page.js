@@ -9,18 +9,17 @@ import Footer from "../../components/Footer";
 
 export default function CartPage() {
   const router = useRouter();
-  
+
   // Lấy dữ liệu từ kho Giỏ Hàng
-  // Giả sử kho của ông có cart (mảng data) và removeFromCart (hàm xóa)
   const { cart, removeFromCart } = useCartStore();
 
-  // 🚀 STATE CHO VOUCHER (MÃ GIẢM GIÁ)
+  // 🚀 STATE CHO VOUCHER (Đã độ lại để nhận cả Tiền mặt lẫn %)
   const [voucherCode, setVoucherCode] = useState("");
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountData, setDiscountData] = useState({ type: 'percent', value: 0 }); // Lưu 2 thông số
   const [isApplying, setIsApplying] = useState(false);
   const [voucherMessage, setVoucherMessage] = useState({ type: "", text: "" });
 
-  // 1. Gộp các sản phẩm trùng ID lại để hiển thị Số lượng cho đẹp (nếu kho của ông lưu dạng mảng phẳng)
+  // 1. Gộp các sản phẩm trùng ID lại
   const groupedCart = cart.reduce((acc, item) => {
     const existing = acc.find(i => i._id === item._id);
     if (existing) {
@@ -31,14 +30,26 @@ export default function CartPage() {
     return acc;
   }, []);
 
-  // 2. Tính toán tiền nong
+  // 2. TÍNH TOÁN TIỀN NONG (Đã nâng cấp)
   const subTotal = groupedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discountAmount = (subTotal * discountPercent) / 100;
+
+  let discountAmount = 0;
+  if (discountData.type === 'percent' || discountData.type === 'PERCENT') {
+    discountAmount = (subTotal * discountData.value) / 100;
+  } else {
+    discountAmount = discountData.value;
+  }
+
+  // Chặn trường hợp tiền giảm lớn hơn tiền mua (Giảm xong âm tiền là sạt nghiệp Sếp ơi 😂)
+  if (discountAmount > subTotal) {
+    discountAmount = subTotal;
+  }
+
   const finalTotal = subTotal - discountAmount;
 
   const formatPrice = (price) => Math.round(price).toLocaleString('vi-VN') + " VNĐ";
 
-  // 🚀 3. HÀM ÁP DỤNG VOUCHER GỌI XUỐNG BACKEND
+  // 🚀 3. HÀM ÁP DỤNG VOUCHER
   const handleApplyVoucher = async () => {
     if (!voucherCode.trim()) {
       setVoucherMessage({ type: "error", text: "Ní chưa nhập mã mà đòi giảm giá sao?" });
@@ -49,16 +60,25 @@ export default function CartPage() {
       setIsApplying(true);
       setVoucherMessage({ type: "", text: "" });
 
+      // Gửi CẢ MÃ VOUCHER LẪN TỔNG TIỀN lên cho BE check
       const res = await axios.post("https://doan-ecommerce-backend.vercel.app/api/v1/vouchers/apply", {
-        code: voucherCode
+        code: voucherCode,
+        cartTotal: subTotal // Bơm số tiền 85k vô đây nè!
       });
 
       if (res.data.success) {
-        setDiscountPercent(res.data.discountPercent);
-        setVoucherMessage({ type: "success", text: `🎉 Bú ngay mã giảm ${res.data.discountPercent}% Chủ Tịch ơi!` });
+        // Hứng 2 dữ liệu mới từ BE trả về
+        setDiscountData({ type: res.data.discountType, value: res.data.discountValue });
+
+        const successText = res.data.discountType === 'percent' || res.data.discountType === 'PERCENT'
+          ? `🎉 Bú ngay mã giảm ${res.data.discountValue}% Chủ Tịch ơi!`
+          : `🎉 Bú ngay mã giảm ${formatPrice(res.data.discountValue)} Chủ Tịch ơi!`;
+
+        setVoucherMessage({ type: "success", text: successText });
       }
     } catch (err) {
-      setDiscountPercent(0);
+      setDiscountData({ type: 'percent', value: 0 });
+      // Lấy câu chửi "Đơn hàng phải từ 200k" từ BE lên đây hiện ra!
       const errorMsg = err.response?.data?.message || "Mã này dỏm hoặc bị lỗi rồi!";
       setVoucherMessage({ type: "error", text: `❌ ${errorMsg}` });
     } finally {
@@ -69,19 +89,19 @@ export default function CartPage() {
   // 4. Xóa Voucher
   const handleRemoveVoucher = () => {
     setVoucherCode("");
-    setDiscountPercent(0);
+    setDiscountData({ type: 'percent', value: 0 });
     setVoucherMessage({ type: "", text: "" });
   };
 
-  // 5. Chuyển sang trang Thanh Toán (Truyền luôn số tiền đã giảm qua URL hoặc State)
+  // 5. Chuyển sang trang Thanh Toán
   const handleCheckout = () => {
-    // Nếu có trang checkout riêng thì push qua, kẹp theo phần trăm giảm giá để bên kia tính
-    router.push(`/checkout?discount=${discountPercent}`);
+    // Truyền thẳng số tiền đã được giảm (discountAmount) qua bên checkout luôn cho lẹ
+    router.push(`/checkout?discountAmount=${discountAmount}`);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      
+
       <div className="bg-white border-b border-slate-100 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Giỏ Hàng Của Bạn</h1>
@@ -89,7 +109,7 @@ export default function CartPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1">
-        
+
         {groupedCart.length === 0 ? (
           <div className="bg-white rounded-4xl shadow-sm border border-slate-100 p-20 flex flex-col items-center justify-center text-center">
             <div className="text-8xl mb-6 grayscale opacity-30">🛒</div>
@@ -101,21 +121,21 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="flex flex-col lg:flex-row gap-10">
-            
+
             {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM */}
             <div className="lg:w-2/3 space-y-6">
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6 md:p-8">
                 <h3 className="text-lg font-black text-slate-800 mb-6 border-b border-slate-100 pb-4">Chi Tiết Sản Phẩm ({groupedCart.length} món)</h3>
-                
+
                 <div className="space-y-6">
                   {groupedCart.map((item, index) => (
                     <div key={index} className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl border border-slate-50 hover:bg-slate-50 transition-colors group">
-                      
+
                       <div className="w-24 h-24 shrink-0 bg-white rounded-xl border border-slate-100 overflow-hidden">
-                        <img 
-                          src={item.image || "https://via.placeholder.com/150?text=No+Image"} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover mix-blend-multiply group-hover:scale-110 transition-transform duration-500" 
+                        <img
+                          src={item.image || "https://via.placeholder.com/150?text=No+Image"}
+                          alt={item.title}
+                          className="w-full h-full object-cover mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
                         />
                       </div>
 
@@ -132,8 +152,8 @@ export default function CartPage() {
                         <div className="text-sm font-black text-slate-500 bg-slate-100 px-4 py-2 rounded-xl">
                           x{item.quantity}
                         </div>
-                        <button 
-                          onClick={() => removeFromCart(item._id || item.id)} // Truyền đúng ID để kho xóa
+                        <button
+                          onClick={() => removeFromCart(item._id || item.id)}
                           className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                           title="Xóa khỏi giỏ"
                         >
@@ -153,35 +173,37 @@ export default function CartPage() {
             <div className="lg:w-1/3">
               <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8 sticky top-24">
                 <h3 className="text-lg font-black text-slate-800 mb-6 border-b border-slate-100 pb-4">Đơn Hàng Của Bạn</h3>
-                
+
                 <div className="space-y-4 text-sm font-medium text-slate-600 mb-6">
                   <div className="flex justify-between">
                     <span>Tạm tính ({groupedCart.length} món)</span>
                     <span className="font-bold text-slate-800">{formatPrice(subTotal)}</span>
                   </div>
-                  
+
                   {/* 🚀 KHU VỰC NHẬP VOUCHER */}
                   <div className="pt-4 border-t border-slate-100">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Mã Giảm Giá</label>
-                    
-                    {discountPercent > 0 ? (
+
+                    {discountData.value > 0 ? (
                       <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex justify-between items-center">
                         <div>
                           <span className="text-green-700 font-black text-sm uppercase tracking-wide">{voucherCode}</span>
-                          <p className="text-xs text-green-600 font-bold mt-1">Đã áp dụng giảm {discountPercent}%</p>
+                          <p className="text-xs text-green-600 font-bold mt-1">
+                            Đã áp dụng giảm {discountData.type === 'percent' || discountData.type === 'PERCENT' ? `${discountData.value}%` : formatPrice(discountData.value)}
+                          </p>
                         </div>
                         <button onClick={handleRemoveVoucher} className="text-slate-400 hover:text-red-500 font-bold text-xs underline underline-offset-2">Hủy mã</button>
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={voucherCode}
                           onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                          placeholder="VD: CHUTICHVIP" 
+                          placeholder="VD: CHUTICHVIP"
                           className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none uppercase"
                         />
-                        <button 
+                        <button
                           onClick={handleApplyVoucher}
                           disabled={isApplying || !voucherCode.trim()}
                           className="bg-slate-900 text-white font-black px-5 py-3 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50"
@@ -190,7 +212,7 @@ export default function CartPage() {
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Báo lỗi hoặc thành công */}
                     {voucherMessage.text && (
                       <div className={`mt-3 text-xs font-bold ${voucherMessage.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
@@ -215,7 +237,7 @@ export default function CartPage() {
                   <p className="text-[10px] text-right text-slate-400 font-bold mt-2">(Đã bao gồm VAT & Freeship)</p>
                 </div>
 
-                <button 
+                <button
                   onClick={handleCheckout}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-all hover:-translate-y-1 uppercase tracking-widest text-sm flex items-center justify-center gap-2"
                 >

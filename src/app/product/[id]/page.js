@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "react-hot-toast";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +16,9 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  
+  // 🚀 BỔ SUNG: State lưu trữ số lượng tồn kho
+  const [stock, setStock] = useState(null); 
 
   const { user } = useAuthStore();
   const [reviews, setReviews] = useState([]);
@@ -28,6 +32,7 @@ export default function ProductDetail() {
     if (id) {
       fetchProductData();
       fetchReviews();
+      fetchInventory(); // 🚀 BỔ SUNG: Gọi thủ kho check hàng
     }
   }, [id]);
 
@@ -46,6 +51,28 @@ export default function ProductDetail() {
     }
   };
 
+  // 🚀 BỔ SUNG: Hàm gọi API quét kho hàng
+  const fetchInventory = async () => {
+    try {
+      const res = await axios.get(`https://doan-ecommerce-backend.vercel.app/api/v1/inventories`);
+      const allInventories = res.data;
+      
+      // Tìm đúng cái kho của sản phẩm hiện tại
+      const currentItem = allInventories.find(inv => 
+        (inv.product?._id || inv.product) === id
+      );
+      
+      if (currentItem) {
+        setStock(currentItem.stock);
+      } else {
+        setStock(0); // Không tìm thấy trong sổ thì coi như hết hàng
+      }
+    } catch (err) {
+      console.error("Lỗi lấy tồn kho:", err);
+      setStock(0);
+    }
+  };
+
   const fetchReviews = async () => {
     try {
       const res = await axios.get(`https://doan-ecommerce-backend.vercel.app/api/v1/reviews/product/${id}`);
@@ -59,11 +86,19 @@ export default function ProductDetail() {
 
   const formatPrice = (price) => price?.toLocaleString('vi-VN') + " VNĐ";
 
-  const handleIncrease = () => setQuantity(q => q + 1);
+  // 🚀 BỔ SUNG LOGIC CHẶN TĂNG SỐ LƯỢNG LỐ KHO
+  const handleIncrease = () => {
+    if (stock !== null && quantity >= stock) {
+      toast.error(`Kho chỉ còn đúng ${stock} cái thôi Chủ Tịch ơi! Khách thông cảm nhen!`);
+      return;
+    }
+    setQuantity(q => q + 1);
+  };
+  
   const handleDecrease = () => setQuantity(q => (q > 1 ? q - 1 : 1));
 
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product || stock <= 0) return; // Hết hàng thì cấm chạy hàm này
     const cartItem = {
       _id: product._id,
       title: product.title || product.name,
@@ -74,19 +109,71 @@ export default function ProductDetail() {
     for(let i = 0; i < quantity; i++) {
        addToCart(cartItem);
     }
-    alert(`🛒 Đã ném ${quantity} món "${cartItem.title}" vào giỏ hàng!`);
+    toast.success(`🛒 Đã ném ${quantity} món "${cartItem.title}" vào giỏ hàng!`);
   };
 
   const handleBuyNow = () => {
+    if (stock <= 0) return; // Hết hàng cấm mua
     handleAddToCart();
     router.push("/cart"); 
   };
 
-  // 🚀 Hàm gửi đánh giá (UPDATE: BẺ KHÓA TOKEN LẤY ID)
+  // 🚀 BỔ SUNG HÀM XỬ LÝ ĐẶT CHỖ / GIỮ HÀNG
+  const handleReserve = async () => {
+    let currentUser = (user && Object.keys(user).length > 0) ? user : null;
+    let currentToken = user?.token || "";
+
+    // Tìm user từ local storage nếu chưa có
+    if (!currentUser || !currentToken) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        try {
+          const item = JSON.parse(localStorage.getItem(key));
+          if (item?.state?.user) currentUser = item.state.user;
+          if (item?.state?.token) currentToken = item.state.token;
+        } catch (error) {}
+      }
+    }
+
+    if (!currentToken) currentToken = localStorage.getItem("token") || "";
+    let userId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.data?._id;
+
+    if (!userId && currentToken) {
+      try {
+        const payload = JSON.parse(atob(currentToken.split('.')[1])); 
+        userId = payload._id || payload.id || payload.userId;
+      } catch (error) {}
+    }
+
+    if (!userId) {
+      toast("Ní ơi, đăng nhập trước rồi mới giữ hàng được nha!");
+      return router.push('/login');
+    }
+
+    if (stock !== null && quantity > stock) {
+      toast.error(`Kho chỉ còn đúng ${stock} cái thôi Chủ Tịch ơi! Không đủ để giữ hàng.`);
+      return;
+    }
+
+    try {
+      const res = await axios.post("https://doan-ecommerce-backend.vercel.app/api/v1/reservations", {
+        userId: userId,
+        productId: id,
+        quantity: quantity
+      });
+
+      if (res.data.success || res.status === 201) {
+        toast.success("🎉 Đã đặt gạch giữ hàng thành công! Ní vô Profile để kiểm tra nha.");
+      }
+    } catch (error) {
+      console.error("Lỗi giữ hàng:", error);
+      toast.error("Hết chỗ giữ rồi hoặc lỗi mạng, thử lại sau nha Sếp!");
+    }
+  };
+
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     
-    // 1. Quét Token và User từ mọi ngóc ngách trong bộ nhớ
     let currentUser = (user && Object.keys(user).length > 0) ? user : null;
     let currentToken = user?.token || "";
 
@@ -103,33 +190,25 @@ export default function ProductDetail() {
 
     if (!currentToken) currentToken = localStorage.getItem("token") || "";
 
-    // 2. Tìm ID theo cách thông thường
     let userId = currentUser?._id || currentUser?.id || currentUser?.userId || currentUser?.data?._id;
 
-    // 3. TUYỆT KỸ: Nếu vẫn không có ID, tự động bẻ khóa JWT Token để moi ID ra!
     if (!userId && currentToken) {
       try {
-        const payload = JSON.parse(atob(currentToken.split('.')[1])); // Bẻ khóa phần ruột của Token
+        const payload = JSON.parse(atob(currentToken.split('.')[1])); 
         userId = payload._id || payload.id || payload.userId;
-        console.log("🛠️ Đã dùng tuyệt kỹ lấy được ID từ Token:", userId);
-      } catch (error) {
-        console.log("Token không hợp lệ để bẻ khóa.");
-      }
+      } catch (error) {}
     }
 
-    // 4. Chốt chặn cuối cùng
     if (!userId) {
-      alert("Hệ thống vẫn không tìm thấy tài khoản của ông. Ní thử xóa lịch sử web rồi đăng nhập lại xem!");
-      console.log("Dữ liệu User hiện tại:", currentUser);
+      toast.error("Hệ thống vẫn không tìm thấy tài khoản của ông. Ní thử xóa lịch sử web rồi đăng nhập lại xem!");
       return;
     }
 
     if (!comment.trim()) {
-      alert("Nhập vài chữ review cho xôm tụ đi ní ơi!");
+      toast("Nhập vài chữ review cho xôm tụ đi ní ơi!");
       return;
     }
 
-    // 5. Gửi lên mây
     try {
       setIsSubmitting(true);
       
@@ -148,15 +227,15 @@ export default function ProductDetail() {
       );
 
       if (res.data.success || res.status === 201 || res.status === 200) {
-        alert("🎉 Đã gửi đánh giá thành công rực rỡ!");
+        toast.success("🎉 Đã gửi đánh giá thành công rực rỡ!");
         setComment("");
         setRating(5);
-        fetchReviews(); // Tự động làm mới danh sách bình luận
+        fetchReviews(); 
       }
     } catch (error) {
       console.error("Lỗi gửi review:", error);
       const errorMsg = error.response?.data?.message || error.message;
-      alert(`Huhu gửi xịt rồi: ${errorMsg}`);
+      toast.error(`Huhu gửi xịt rồi: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -183,8 +262,10 @@ export default function ProductDetail() {
   }
 
   const avgRating = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length).toFixed(1) : 0;
-  // Biến kiểm tra xem user có thực sự đăng nhập không (chống vụ object rỗng {})
   const isUserValid = (user && Object.keys(user).length > 0) || (typeof window !== 'undefined' && localStorage.getItem("token"));
+  
+  // 🚀 Biến check Hết Hàng
+  const isOutOfStock = stock !== null && stock <= 0;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -206,13 +287,20 @@ export default function ProductDetail() {
         <div className="bg-white rounded-4xl shadow-sm border border-slate-100 overflow-hidden flex flex-col lg:flex-row mb-12">
           
           <div className="lg:w-1/2 p-8 md:p-12 bg-slate-50 flex items-center justify-center relative group">
-            <span className="absolute top-6 left-6 bg-red-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg z-10 shadow-sm">
-              MỚI NHẤT
-            </span>
+            {isOutOfStock ? (
+              <span className="absolute top-6 left-6 bg-slate-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg z-10 shadow-sm">
+                HẾT HÀNG
+              </span>
+            ) : (
+              <span className="absolute top-6 left-6 bg-red-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg z-10 shadow-sm">
+                MỚI NHẤT
+              </span>
+            )}
+            
             <img 
               src={product.image || (product.images && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/600x600?text=Chua+Co+Anh")} 
               alt={product.title || product.name}
-              className="w-full max-w-md aspect-square object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
+              className={`w-full max-w-md aspect-square object-contain mix-blend-multiply transition-transform duration-500 ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
             />
           </div>
 
@@ -232,8 +320,14 @@ export default function ProductDetail() {
               {product.title || product.name}
             </h1>
             
-            <div className="text-3xl md:text-4xl font-black text-red-600 mb-8 pb-8 border-b border-slate-100">
+            <div className="text-3xl md:text-4xl font-black text-red-600 mb-8 pb-8 border-b border-slate-100 flex items-end gap-4">
               {formatPrice(product.price)}
+              {/* 🚀 Hiển thị badge Tồn kho */}
+              {stock !== null && stock > 0 && (
+                <span className="text-sm font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 mb-1">
+                  Còn {stock} sản phẩm
+                </span>
+              )}
             </div>
 
             <div className="text-slate-600 font-medium leading-relaxed mb-10 text-justify">
@@ -244,27 +338,57 @@ export default function ProductDetail() {
               <div>
                 <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">SỐ LƯỢNG</span>
                 <div className="flex items-center w-max bg-slate-50 rounded-xl border border-slate-200 p-1">
-                  <button onClick={handleDecrease} className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition">-</button>
-                  <span className="w-14 text-center font-black text-slate-900">{quantity}</span>
-                  <button onClick={handleIncrease} className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition">+</button>
+                  <button 
+                    onClick={handleDecrease} 
+                    disabled={isOutOfStock}
+                    className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >-</button>
+                  <span className="w-14 text-center font-black text-slate-900">{isOutOfStock ? 0 : quantity}</span>
+                  <button 
+                    onClick={handleIncrease} 
+                    disabled={isOutOfStock}
+                    className="w-12 h-10 flex items-center justify-center text-slate-600 font-black hover:bg-white hover:shadow-sm rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >+</button>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <button 
                   onClick={handleAddToCart}
-                  className="flex-1 bg-white border-2 border-slate-900 text-slate-900 font-black py-4 rounded-xl hover:bg-slate-900 hover:text-white transition-colors duration-300 shadow-sm flex justify-center items-center gap-2 tracking-widest uppercase text-sm"
+                  disabled={isOutOfStock}
+                  className={`flex-1 font-black py-4 rounded-xl transition-colors duration-300 shadow-sm flex justify-center items-center gap-2 tracking-widest uppercase text-sm ${
+                    isOutOfStock 
+                      ? 'bg-slate-200 text-slate-400 border-2 border-slate-200 cursor-not-allowed' 
+                      : 'bg-white border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'
+                  }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
-                  THÊM VÀO GIỎ
+                  {isOutOfStock ? '🚫 HẾT HÀNG' : 'THÊM VÀO GIỎ'}
                 </button>
                 <button 
                   onClick={handleBuyNow}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors duration-300 tracking-widest uppercase text-sm"
+                  disabled={isOutOfStock}
+                  className={`flex-1 font-black py-4 rounded-xl shadow-lg transition-colors duration-300 tracking-widest uppercase text-sm ${
+                    isOutOfStock
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
-                  MUA NGAY
+                  {isOutOfStock ? 'KHÔNG THỂ MUA' : 'MUA NGAY'}
+                </button>
+                {/* 🚀 BỔ SUNG NÚT GIỮ HÀNG TẠI ĐÂY */}
+                <button 
+                  onClick={handleReserve}
+                  disabled={isOutOfStock}
+                  className={`flex-1 font-black py-4 rounded-xl shadow-lg transition-colors duration-300 tracking-widest uppercase text-sm ${
+                    isOutOfStock
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
+                >
+                  ⏳ GIỮ HÀNG
                 </button>
               </div>
             </div>
@@ -273,6 +397,7 @@ export default function ProductDetail() {
 
         {/* 🚀 KHỐI 2: ĐÁNH GIÁ VÀ NHẬN XÉT (REVIEWS) */}
         <div className="bg-white rounded-4xl shadow-sm border border-slate-100 p-8 md:p-12">
+          {/* ... (Khối Review giữ nguyên 100% không đổi) ... */}
           <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight uppercase border-b border-slate-100 pb-4">
             Khách Hàng Nói Gì? ({reviews.length})
           </h2>

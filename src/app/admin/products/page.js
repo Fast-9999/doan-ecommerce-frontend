@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "react-hot-toast";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -39,7 +40,7 @@ export default function AdminProducts() {
     if (user) {
       const isAdmin = user.role === 'admin' || user.role === 'ADMIN' || user.username === 'phattest' || user.role?.name === 'admin';
       if (!isAdmin) {
-        alert("Khu vực cấm! Chỉ dành cho Chủ Tịch!");
+        toast.error("Khu vực cấm! Chỉ dành cho Chủ Tịch!");
         router.push("/");
         return;
       }
@@ -88,11 +89,11 @@ export default function AdminProducts() {
       });
       if (res.data.success) {
         setFormData({ ...formData, image: res.data.url });
-        alert("📸 Up ảnh lên mây thành công! Giờ bấm nút AI được rồi đó ní!");
+        toast.success("📸 Up ảnh lên mây thành công! Giờ bấm nút AI được rồi đó ní!");
       }
     } catch (error) {
       console.error("Lỗi upload:", error);
-      alert("Up ảnh xịt rồi ní ơi!");
+      toast.error("Up ảnh xịt rồi ní ơi!");
     } finally {
       setUploadingImage(false);
     }
@@ -102,11 +103,11 @@ export default function AdminProducts() {
     const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     
     if (!API_KEY) {
-      alert("⚠️ Lỗi: Chưa tìm thấy API Key trong file .env!");
+      toast.error("⚠️ Lỗi: Chưa tìm thấy API Key trong file .env!");
       return;
     }
     if (!base64ForAI) {
-      alert("📸 Ní phải up cái ảnh lên trước thì AI mới có cái dòm chứ!");
+      toast("📸 Ní phải up cái ảnh lên trước thì AI mới có cái dòm chứ!");
       return;
     }
 
@@ -134,11 +135,11 @@ export default function AdminProducts() {
         description: aiData.description || prev.description
       }));
 
-      alert("🪄 AI đã phân tích xong! Ní check lại thông tin nha!");
+      toast("🪄 AI đã phân tích xong! Ní check lại thông tin nha!");
     } catch (err) {
       console.error("Lỗi AI:", err);
       const googleError = err.response?.data?.error?.message || "Lỗi bí ẩn";
-      alert("❌ Chết dở, Google nó chê nè:\n\n" + googleError);
+      toast.error("❌ Chết dở, Google nó chê nè:\n\n" + googleError);
     } finally {
       setIsAnalyzingAI(false);
     }
@@ -168,7 +169,7 @@ export default function AdminProducts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title || !formData.price) {
-      alert("Nhập đủ Tên và Giá nha Chủ Tịch!");
+      toast.error("Nhập đủ Tên và Giá nha Chủ Tịch!");
       return;
     }
 
@@ -188,13 +189,13 @@ export default function AdminProducts() {
     `https://doan-ecommerce-backend.vercel.app/api/v1/products/${currentId}`,
     payload
   );
-  alert("✏️ Cập nhật sản phẩm thành công!");
+  toast.success("✏️ Cập nhật sản phẩm thành công!");
 } else {
   await axios.post(
     "https://doan-ecommerce-backend.vercel.app/api/v1/products",
     payload
   );
-  alert("🎉 Thêm sản phẩm mới thành công!");
+  toast.success("🎉 Thêm sản phẩm mới thành công!");
 }
       
       setShowModal(false);
@@ -202,7 +203,7 @@ export default function AdminProducts() {
     } catch (err) {
       console.error("Lỗi lưu sản phẩm:", err);
       const backendError = err.response?.data?.message || err.response?.data?.error || JSON.stringify(err.response?.data);
-      alert(`❌ LỖI RỒI NÍ ƠI! Backend nó nói là:\n\n👉 ${backendError}`);
+      toast.error(`❌ LỖI RỒI NÍ ƠI! Backend nó nói là:\n\n👉 ${backendError}`);
     }
   };
 
@@ -212,13 +213,13 @@ export default function AdminProducts() {
   try {
     await axios.delete(`https://doan-ecommerce-backend.vercel.app/api/v1/products/${id}`);
     
-    alert("🗑️ Xóa sản phẩm thành công!");
+    toast.success("🗑️ Xóa sản phẩm thành công!");
     fetchProducts();        // reload danh sách
   } catch (err) {
     console.error("Lỗi khi xóa sản phẩm:", err);
     
     const errorMsg = err.response?.data?.message || err.message || "Không xác định";
-    alert(`❌ Xóa thất bại!\n${errorMsg}`);
+    toast.error(`❌ Xóa thất bại!\n${errorMsg}`);
   }
 };
 
@@ -241,9 +242,12 @@ export default function AdminProducts() {
           <Link href="/admin/products" className="block px-4 py-3 bg-linear-to-r from-blue-600 to-indigo-600 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition transform hover:translate-x-1">
             👕 Quản lý Sản Phẩm
           </Link>
-          <button className="block w-full text-left px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition cursor-not-allowed opacity-50">
+          <Link href="/admin/users" className="block px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition">
             👥 Quản lý Users
-          </button>
+          </Link>
+          <Link href="/admin/vouchers" className="block px-4 py-3 text-slate-300 font-bold hover:bg-slate-800 hover:text-white rounded-xl transition">
+            🎟️ Quản lý Vouchers
+          </Link>
         </nav>
         
         <div className="absolute bottom-10 left-6 right-6">

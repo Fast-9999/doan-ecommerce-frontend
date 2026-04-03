@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "69ce2798c3fa4c321b01bafc",
+      "code": "SIEUSALE",
+      "discountType": "percent",
+      "discountValue": 21,
+      "minOrderValue": 200000,
+      "usageLimit": 21,
+      "usedCount": 0,
+      "expirationDate": "2026-04-21T08:23:00.000Z",
+      "isActive": true,
+      "createdAt": "2026-04-02T08:23:52.567Z",
+      "updatedAt": "2026-04-02T08:23:52.567Z",
+      "__v": 0
+    },
+    {
+      "discountType": "percent",
+      "minOrderValue": 0,
+      "usageLimit": 100,
+      "usedCount": 0,
+      "_id": "69c8fb832e199b6ffdcf761e",
+      "code": "CHUTICHVIP",
+      "discountPercent": 50,
+      "expirationDate": "2026-04-28T10:14:27.491Z",
+      "isActive": true,
+      "createdAt": "2026-03-29T10:14:27.504Z",
+      "updatedAt": "2026-03-29T10:14:27.504Z",
+      "__v": 0
+    }
+  ]
+}

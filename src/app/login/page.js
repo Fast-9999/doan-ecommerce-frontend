@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "react-hot-toast";
 import { useState } from "react";
 import Link from "next/link";
 import axios from "axios";
@@ -35,7 +36,7 @@ export default function LoginPage() {
         // Mình truyền object user (có username) và truyền cái token vô
         login({ username: username }, response.data);
 
-        alert("Đăng nhập thành công! Lụm lúa thôi ní! 🚀");
+        toast.success("Đăng nhập thành công! Lụm lúa thôi ní! 🚀");
         router.push("/");
       }
     } catch (err) {

@@ -5,6 +5,7 @@ import useCartStore from "../store/useCartStore";
 import useAuthStore from "../store/useAuthStore";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 export default function Navbar() {
   const totalItems = useCartStore((state) => state.getTotalItems());
@@ -29,7 +30,10 @@ export default function Navbar() {
     clearCart();
 
     // 3. Đá về trang chủ
-    alert("Đã đăng xuất thành công! Hẹn gặp lại ní nha! 👋");
+    toast.success("Đã đăng xuất thành công! Hẹn gặp lại ní nha! 👋", {
+      duration: 3000, 
+      style: { borderRadius: '12px', background: '#0f172a', color: '#fff', fontWeight: 'bold' } 
+    });
     router.push("/");
   };
 

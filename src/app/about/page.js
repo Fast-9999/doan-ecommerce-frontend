@@ -22,10 +22,10 @@ export default function AboutPage() {
           <div className="md:w-1/2 p-10 md:p-16 flex flex-col justify-center">
             <h2 className="text-sm font-black text-blue-600 tracking-widest uppercase mb-3">Câu Chuyện Của Sếp</h2>
             <h3 className="text-3xl md:text-4xl font-black text-slate-900 mb-6 leading-tight">
-              Khởi nguồn từ đam mê <br /> "Chốt Đơn"
+              Khởi nguồn từ đam mê <br /> &quot;Chốt Đơn&quot;
             </h3>
             <p className="text-slate-600 font-medium leading-relaxed mb-6 text-justify">
-              Được thành lập vào một ngày đẹp trời, FAST.SHOP ra đời với một sứ mệnh duy nhất: Mang đến cho khách hàng những sản phẩm chất lượng đỉnh cao với mức giá "hạt dẻ" nhất. Chúng tôi không chỉ bán hàng, chúng tôi bán sự tự tin và phong cách cho bạn.
+              Được thành lập vào một ngày đẹp trời, FAST.SHOP ra đời với một sứ mệnh duy nhất: Mang đến cho khách hàng những sản phẩm chất lượng đỉnh cao với mức giá &quot;hạt dẻ&quot; nhất. Chúng tôi không chỉ bán hàng, chúng tôi bán sự tự tin và phong cách cho bạn.
             </p>
             <p className="text-slate-600 font-medium leading-relaxed text-justify">
               Với đội ngũ admin chạy bằng cơm luôn túc trực 24/7, mọi đơn hàng của bạn sẽ được đóng gói tỉ mỉ và giao đi với tốc độ của một cơn lốc. Tại FAST.SHOP, khách hàng không chỉ là thượng đế, mà còn là những người anh em chí cốt!
